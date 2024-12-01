@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <!-- 导入依赖 -->
+  <script src="https://lib.baomitu.com/leaflet/1.9.2/leaflet.js"></script>
+  <script src="https://lib.baomitu.com/jquery/2.2.4/jquery.js"></script>
+  <link rel="stylesheet" href="https://lib.baomitu.com/leaflet/1.9.2/leaflet.css">
+  <style>
+    * {
+      margin: 0;
+      padding: 0
+    }
+
+    #map {
+      width: 100vw;
+      height: 100vh;
+    }
+
+    #btn {
+      position: fixed;
+      z-index: 1000;
+      top: 10px;
+      right: 30px;
+    }
+  </style>
+</head>
+
+<body>
+  <button id="btn" onclick="clearMarker()">清除标注</button>
+  <div id="map">
+  </div>
+  <script>
+    /* 加载mapbox瓦片 */
+    // var url = 'https://api.mapbox.com/styles/v1/mapbox/streets-v11/tiles/{z}/{x}/{y}?access_token=pk.eyJ1IjoiY2hlbmdiZW5jaGFvIiwiYSI6ImNsODU3aGRiODA0Y2UzcHBzZmFlcmdqZ2sifQ.8k59W_pB_Riwe6o-MneRlA'
+    // var layer = L.tileLayer(url, {
+    //   maxZoom: 19,
+    //   attribution: '© OpenStreetMap'
+    // })
+    /* 加载高德瓦片 */
+    var layer = L.tileLayer('http://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}', {
+      subdomains: ['1', '2', '3', '4'],
+      minZoom: 1,
+      maxZoom: 19
+    })
+
+    const map = L.map("map", {
+      layers: [layer],
+      /* center:[纬度,经度] */
+      center: [30.50, 114.30],
+      zoom: 8
+    })
+
+    /* 创建图层管理器 -- 集中管理图层 */
+    let layersGroup = new L.FeatureGroup();
+    map.addLayer(layersGroup);
+    // map.on("click", evt => {
+    //   var { lat, lng } = evt.latlng;
+    //   let marker = L.marker([lat, lng]);
+    //   layersGroup.addLayer(marker);
+
+    // })
+
+    function clearMarker() {
+      layersGroup.clearLayers();
+    }
+
+    const gis_url = 'http://39.103.151.139:8000/gis/road_state'
+    $.ajax({
+      url: gis_url
+    }).then(data => {
+      var layer = L.geoJSON(data, {
+        color: "#ff2d51",
+        weight: 10,
+        opacity: 0.5
+      });
+      map.addLayer(layer)
+    })
+
+
+    //点击事件设置某一条线数据颜色
+    let geo_layer = null;
+    $.ajax({
+      url: "http://39.103.151.139:8000/gis/road_state"
+    }).then(data => {
+      /* 根据flow值不同显示不同颜色
+                1500 red
+                <1500 green
+                 */
+      geo_layer = L.geoJSON(data, {
+      });
+      map.addLayer(geo_layer);
+    })
+    map.on("click", () => {
+      if (wuhan_layer) {
+        let layers = Object.values(wuhan_layer._layers)
+        let target = layers.find(item => item.feature.properties.name == "关山大道")
+        console.log(target)
+        target.setStyle({
+          color: "green"
+        })
+      }
+
+    })
+
+
+    //武汉市边界
+    $.ajax({
+      url: "https://geo.datav.aliyun.com/areas_v3/bound/420100_full.json"
+    }).then(data => {
+      console.log(data)
+      var wuhan_layer = L.geoJSON(data);
+      map.addLayer(wuhan_layer)
+      wuhan_layer.on("click", evt => {
+        console.log(evt);
+
+        let feature = evt.layer.feature.properties.name
+        let popup = L.popup()
+          .setLatLng(evt.latlng)
+          .setContent(feature)
+          .openOn(map)
+        wuhan_layer.setStyle({
+          color: "#3388FF"
+        })
+        evt.layer.setStyle({
+          color: "#ff2d51"
+        })
+        console.log(evt)
+      })
+    })
+
+
+
+  </script>
+</body>
+
+</html>
